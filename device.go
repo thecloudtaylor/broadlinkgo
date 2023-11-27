@@ -3,12 +3,15 @@ package broadlinkgo
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -75,7 +78,7 @@ func newDevice(remoteAddr string, mac net.HardwareAddr, timeout int, devChar dev
 	resp, err := d.serverRequest(authenticatePayload())
 	d.close()
 	if err != nil {
-		Logger.Printf("%#v",err)
+		Logger.Printf("%#v", err)
 		return d, fmt.Errorf("error making authentication request: %v", err)
 	}
 	if resp.Type == DeviceError {
@@ -143,7 +146,6 @@ func (d *device) serverRequest(req unencryptedRequest) (Response, error) {
 	}
 
 	//Logger.Printf("Request: %#v",req)
-
 
 	encryptedReq, err := d.encryptRequest(req)
 	if err != nil {
@@ -307,18 +309,16 @@ func (d *device) readPacket() (Response, error) {
 	payload := make([]byte, len(encryptedPayload), len(encryptedPayload))
 	mode := cipher.NewCBCDecrypter(block, d.iv)
 
-
 	if len(encryptedPayload)%16 != 0 {
 
-		Logger.Printf("%#v",encryptedPayload)
-		return processedPayload,errors.New("crypto/cipher: input not full blocks")
+		Logger.Printf("%#v", encryptedPayload)
+		return processedPayload, errors.New("crypto/cipher: input not full blocks")
 	}
-
 
 	mode.CryptBlocks(payload, encryptedPayload)
 
 	command := buf[0x26]
-	Logger.Printf("Command: %#v",command)
+	Logger.Printf("Command: %#v", command)
 	header := d.requestHeader
 	if command == 0xe9 {
 		copy(d.key, payload[0x04:0x14])
@@ -429,10 +429,19 @@ func (d *device) checkRFData2() (Response, error) {
 	return resp, nil
 }
 
+func (d *device) checkRFData2wFrequency(frequency float64) (Response, error) {
+	resp, err := d.serverRequest(d.checkRFData2PayloadwFrequency(frequency))
+	if err != nil {
+		return resp, fmt.Errorf("error making CheckRFData2 request: %v", err)
+	}
+
+	return resp, nil
+}
+
 func (d *device) learn() (Response, error) {
 	deadline := time.Now().Add(learnTimeout * time.Second)
 	defer d.close()
-	_, err := d.serverRequest(d.enterLearningPayload())
+	_, err := d.serverRequest(d.checkRFDataPayload())
 	if err != nil {
 		return Response{}, fmt.Errorf("error making learning request: %v", err)
 	}
@@ -487,7 +496,8 @@ func (d *device) learnRF() (Response, error) {
 				continue
 			}
 			if resp.Type == RawRFData {
-				log.Print("Check frequency successful, proceeding to find RF packet...")
+				freq, _ := strconv.ParseFloat(hex.EncodeToString(resp.Data), 64)
+				log.Print("Check frequency successful - %vMHz, proceeding to find RF packet...", (freq / 1000))
 				state = 1
 			}
 		case 1:
@@ -505,7 +515,7 @@ func (d *device) learnRF() (Response, error) {
 				// receive a response without an error.
 				// In any case, we have a learningtimeout so we won't be looping
 				// indefinitely.
-				Logger.Printf("Learn RF Err: %#v %#v",err,resp)
+				Logger.Printf("Learn RF Err: %#v %#v", err, resp)
 				continue
 			}
 			if resp.Type == RawData {
@@ -514,6 +524,63 @@ func (d *device) learnRF() (Response, error) {
 			}
 		}
 	}
+}
+
+// Information on the RF learning sequence can be found at:
+// https://github.com/mjg59/python-broadlink/pull/613/commits/168b9015ab37692e1d1164bfc4dd0282f16ab018
+func (d *device) learnRFwFrequency(frequency float64) (Response, error) {
+
+	deadline := time.Now().Add(learnTimeout * time.Second)
+	defer d.close()
+	state := 1
+
+	for {
+		if time.Now().After(deadline) {
+			d.cancelLearn()
+			return Response{}, errors.New("learning timeout")
+		}
+
+		switch state {
+
+		case 1:
+			// Send CheckRFData2 (find RF packet) once then proceed to next stage
+			_, err := d.checkRFData2wFrequency(frequency)
+			if err == nil {
+				log.Print("Find RF packet request sent successfully, proceeding to check data...")
+				state = 2
+			}
+		case 2:
+			resp, err := d.checkData()
+			if err != nil || resp.Type == DeviceError {
+				// If err != nil, it's probably because it's just timed out waiting
+				// for a response from check data.
+				// If resp.Type is DeviceError, we'll ignore it and wait till we
+				// receive a response without an error.
+				// In any case, we have a learningtimeout so we won't be looping
+				// indefinitely.
+				Logger.Printf("Learn RF Err: %#v %#v", err, resp)
+				continue
+			}
+			if resp.Type == RawData {
+				log.Println("Everything went ok with rf learning")
+				return resp, nil
+			}
+		}
+	}
+}
+
+func (d *device) checkFrequency() (float64, error) {
+	defer d.close()
+	resp, err := d.checkRFData()
+	if err != nil {
+		return 0, fmt.Errorf("error making frequency check: %v", err)
+	}
+	if resp.Type == DeviceError {
+		return 0, errors.New("device responded with an error code")
+	}
+
+	freq, err := strconv.ParseFloat(hex.EncodeToString(resp.Data), 64)
+	return (freq / 1000), err
 }
 
 func (d *device) checkTemperature() (Response, error) {
@@ -667,6 +734,17 @@ func (d *device) checkRFData2Payload() unencryptedRequest {
 	return unencryptedRequest{
 		command: 0x6a,
 		payload: d.basicRequestPayload(0x1b),
+	}
+}
+
+func (d *device) checkRFData2PayloadwFrequency(frequency float64) unencryptedRequest {
+	p := d.basicRequestPayload(0x1b)
+
+	binary.BigEndian.PutUint64(p[4:], math.Float64bits(frequency))
+
+	return unencryptedRequest{
+		command: 0x6a,
+		payload: p,
 	}
 }
 

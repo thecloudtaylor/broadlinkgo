@@ -5,21 +5,18 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
-	"sort"
-	"os"
 )
 
 var Logger *log.Logger
 
-
-
 func init() {
-	Logger = log.New(os.Stderr, "xxx: ", log.Ldate | log.Ltime | log.Lshortfile)
+	Logger = log.New(os.Stderr, "xxx: ", log.Ldate|log.Ltime|log.Lshortfile)
 }
-
 
 const defaultTimeout = 5 // seconds
 
@@ -101,7 +98,6 @@ func (b *Broadlink) Discover() error {
 	return nil
 }
 
-
 // Learn sends a learn command to the specified device. If id is an empty string it selects the first device.
 func (b *Broadlink) Learn(id string) (string, error) {
 	d, err := b.deviceIsCapableOfIR(id)
@@ -132,6 +128,22 @@ func (b *Broadlink) LearnRF(id string) (string, error) {
 
 	log.Print("Learn RF successful")
 	return hex.EncodeToString(resp.Data), nil
+}
+
+// Gets the current RF Frequency
+func (b *Broadlink) GetRFFrequency(id string) (float64, error) {
+	d, err := b.deviceIsCapableOfRF(id)
+	if err != nil {
+		return 0, err
+	}
+
+	frequency, err := d.checkFrequency()
+	if err != nil {
+		return 0, fmt.Errorf("error while calling check RF: %v", err)
+	}
+
+	log.Print("Frequency Check Successful: %v", frequency)
+	return frequency, nil
 }
 
 // Execute looks at the device type and decides if it should call send() or
@@ -189,32 +201,30 @@ func (b *Broadlink) AddManualDevice(ip string, macs string, deviceType int) erro
 		log.Printf("A device with MAC %v already exists - skipping manual add", hw)
 	}
 	b.devices = append(b.devices, d)
-	
+
 	if len(hw) > 0 {
 		b.lookup[strings.ToLower(hw)] = d
-	}else{
-		
-	b.lookup[d.remoteAddr] = d
+	} else {
 
-	
+		b.lookup[d.remoteAddr] = d
+
 	}
 
 	return nil
 }
 
-func (b Broadlink) DeviceExists(id string) bool { 
-	
+func (b Broadlink) DeviceExists(id string) bool {
+
 	d := b.getDevice(id)
-	
-	if(d!=nil){
-		
+
+	if d != nil {
+
 		return true
-		
+
 	}
-	
+
 	return false
-	
-	
+
 }
 
 func (b Broadlink) getDevice(id string) *device {
@@ -226,26 +236,24 @@ func (b Broadlink) getDevice(id string) *device {
 }
 
 func SortMapStringSlice(m map[string][]string) map[string][]string {
-	
-out := make(map[string][]string)	
 
-keys := make([]string, 0, len(m))
+	out := make(map[string][]string)
 
-for k := range m {
-        keys = append(keys, k)
-}
+	keys := make([]string, 0, len(m))
 
-sort.Strings(keys)
+	for k := range m {
+		keys = append(keys, k)
+	}
 
-for _, k := range keys {
-        
-        
-        out[k]=m[k]
-}
+	sort.Strings(keys)
 
-	
-return out
-	
+	for _, k := range keys {
+
+		out[k] = m[k]
+	}
+
+	return out
+
 }
 
 func (b Broadlink) DeviceIds() map[string][]string {
@@ -253,13 +261,13 @@ func (b Broadlink) DeviceIds() map[string][]string {
 	var lkp = make(map[string][]string)
 
 	for k, v := range b.lookup {
-		
+
 		typ := strconv.Itoa(v.deviceType)
 
-		lkp[k] = []string{v.remoteAddr,typ}
+		lkp[k] = []string{v.remoteAddr, typ}
 
 	}
-	
+
 	lkp = SortMapStringSlice(lkp)
 
 	return lkp
@@ -332,12 +340,10 @@ func (b *Broadlink) addDevice(remote net.Addr, mac net.HardwareAddr, deviceType 
 	b.lookup[strings.ToLower(mac.String())] = dev
 }
 
-func (b *Broadlink) RemoveDevice(key string){
-	
-	
-	delete(b.lookup,key)
-	
-	
+func (b *Broadlink) RemoveDevice(key string) {
+
+	delete(b.lookup, key)
+
 }
 
 func sendHelloPacketToHost(conn net.PacketConn, host string) error {

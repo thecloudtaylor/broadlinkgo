@@ -16,10 +16,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
-
-	"github.com/GeertJohan/go.rice"
-
-	"github.com/2opremio/broadlinkgo"
+	"github.com/rob121/broadlinkgo"
+	rice "github.com/GeertJohan/go.rice"
 )
 
 var broadlink broadlinkgo.Broadlink
@@ -65,7 +63,7 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 
 	device_sel += "</select>"
 
-	tmplMessage.Execute(w, map[string]string{"Mode":mode,"DevicesCT": strconv.Itoa(ct), "DeviceList": device_sel})
+	tmplMessage.Execute(w, map[string]string{"Mode": mode, "DevicesCT": strconv.Itoa(ct), "DeviceList": device_sel})
 
 }
 
@@ -127,8 +125,7 @@ func executeCmd(cmd string, repeat int, device string) bool {
 	if repeat == 0 {
 		repeat = 1
 	}
-	
-	
+
 	fp := filepath.FromSlash(cmdpath + "commands/cmd_" + cmd + ".txt")
 
 	content, err := ioutil.ReadFile(fp)
@@ -201,7 +198,7 @@ func cmdHandler(w http.ResponseWriter, r *http.Request) {
 func learnHandler(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Path
-	
+
 	w.Header().Set("Content-type", "text/html")
 
 	path = strings.Replace(path, " ", "_", -1)
@@ -210,9 +207,8 @@ func learnHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
 	frame := ""
-	
-	
-    kd := broadlink.DeviceIds()
+
+	kd := broadlink.DeviceIds()
 
 	device_sel := "<select class='form-control' name='device' >"
 
@@ -222,39 +218,35 @@ func learnHandler(w http.ResponseWriter, r *http.Request) {
 
 		//kk = strconv.Itoa(k)
 
-		device_sel += "<option value='" + k + "' >" + k+" ("+v[0]+")</option>"
+		device_sel += "<option value='" + k + "' >" + k + " (" + v[0] + ")</option>"
 
 	}
 
 	device_sel += "</select>"
 
-	
-
 	if r.FormValue("cmd") != "" {
 
 		cmd := r.FormValue("cmd")
-		
+
 		dev := r.FormValue("device")
-		
+
 		rf := r.FormValue("rf")
-		
+
 		src := ``
 
-		if(dev!=""){
+		if dev != "" {
 			src = src + `/device/` + dev
 		}
 
 		src = src + `/learnchild/` + cmd
 
-		if(rf!=""){
+		if rf != "" {
 			src = src + `/rf/`
 		}
 
 		frame = `<h4>Learning device [` + cmd + `]</h4><iframe src='` + src + `' width='100%' height='500px' ></iframe>`
 
-
 	}
-	
 
 	templateBox, err := rice.FindBox("httpassets")
 	if err != nil {
@@ -270,9 +262,7 @@ func learnHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	tmplMessage.Execute(w, map[string]string{"Frame": frame,"DeviceList": device_sel})
-	
-
+	tmplMessage.Execute(w, map[string]string{"Frame": frame, "DeviceList": device_sel})
 
 }
 
@@ -282,8 +272,7 @@ func learnChildHandler(w http.ResponseWriter, r *http.Request) {
 
 	path = strings.Replace(path, " ", "_", -1)
 	path = strings.ToLower(path)
-	
-	
+
 	device := r.Form.Get("device")
 
 	w.Header().Set("Content-type", "text/html")
@@ -303,9 +292,9 @@ func learnChildHandler(w http.ResponseWriter, r *http.Request) {
 
 	rf := strings.Contains(path, "/rf/")
 
-	if (rf) {
+	if rf {
 		fmt.Fprintln(w, "Waiting for RF remote. IMPORTANT - press on for 1 second and release until learning is finished <blink>....</blink>")
-	}else{
+	} else {
 		fmt.Fprintln(w, "Waiting for ir remote presses<blink>....</blink>")
 	}
 
@@ -322,10 +311,10 @@ func learnChildHandler(w http.ResponseWriter, r *http.Request) {
 	var data string
 	var err error
 
-	if (rf) {
+	if rf {
 
 		data, err = broadlink.LearnRF(device)
-	}else{
+	} else {
 		data, err = broadlink.Learn(device)
 	}
 
@@ -343,11 +332,11 @@ func learnChildHandler(w http.ResponseWriter, r *http.Request) {
 
 	//create a file with command
 
-    var fp = ""
+	var fp = ""
 	if data != "" {
 
 		fn = parts[2]
-		
+
 		fp = filepath.FromSlash(cmdpath + "commands/cmd_" + fn + ".txt")
 
 		f, err := os.Create(fp)
@@ -372,15 +361,15 @@ func learnChildHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Code Detected!")
 	fmt.Fprintln(w, data)
 	fmt.Fprintln(w, "Code Saved to "+fp)
-	
-	if(device!=""){
-		
-	fmt.Fprintln(w, "Use /device/"+device+"/cmd/"+fn+" to trigger the command")	
-		
-	}else{
-	
-	fmt.Fprintln(w, "Use /cmd/"+fn+" to trigger the command")
-	
+
+	if device != "" {
+
+		fmt.Fprintln(w, "Use /device/"+device+"/cmd/"+fn+" to trigger the command")
+
+	} else {
+
+		fmt.Fprintln(w, "Use /cmd/"+fn+" to trigger the command")
+
 	}
 	fmt.Fprintln(w, "</pre>")
 
@@ -422,106 +411,93 @@ func manualDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 
 	}
-	
+
 	//save this device
-	
 
-	saveDevices(ip,mac,deviceType)
-
+	saveDevices(ip, mac, deviceType)
 
 	respond(w, 200, "Device Added Succesfully", "")
 
 }
 
-func removeDevice(mac string){
-	
-	dev := getDeviceSaved();
-	
-	delete(dev,mac);
-	
-	
+func removeDevice(mac string) {
+
+	dev := getDeviceSaved()
+
+	delete(dev, mac)
+
 	broadlink.RemoveDevice(mac)
-	
-	fp := filepath.FromSlash(cmdpath+"devices.gob")
-	
+
+	fp := filepath.FromSlash(cmdpath + "devices.gob")
+
 	file, err := os.Create(fp)
-   
-    if err == nil { 
-       
-       
-    }
-        
-    encoder := gob.NewEncoder(file)
-     
-    if err := encoder.Encode(dev); err != nil {
-		
+
+	if err == nil {
+
 	}
-	
+
+	encoder := gob.NewEncoder(file)
+
+	if err := encoder.Encode(dev); err != nil {
+
+	}
+
 	file.Close()
-	
+
 }
 
-func getDeviceSaved() map[string][]string{
-	
-		// Create a file for IO
-		
-	fp := filepath.FromSlash(cmdpath+"devices.gob")	
-	
+func getDeviceSaved() map[string][]string {
+
+	// Create a file for IO
+
+	fp := filepath.FromSlash(cmdpath + "devices.gob")
+
 	byt, err := ioutil.ReadFile(fp)
-	
+
 	encodeFile := bytes.NewReader(byt)
-	
+
 	if err != nil {
-	
+
 	}
 
-
-	
 	decoder := gob.NewDecoder(encodeFile)
-	
-		// Place to decode into
+
+	// Place to decode into
 	out := make(map[string][]string)
 
 	// Decode -- We need to pass a pointer otherwise accounts2 isn't modified
 	decoder.Decode(&out)
-	
 
-	
 	return out
-	
+
 }
 
-func saveDevices(ip string,mac string,devicetype int){
-	
-	
-	dev := getDeviceSaved();
-	 
+func saveDevices(ip string, mac string, devicetype int) {
+
+	dev := getDeviceSaved()
+
 	//read, merge, save
 	sdev := strconv.Itoa(devicetype)
-	
-	dev[mac]=[]string{ip,sdev}
 
-	fp := filepath.FromSlash(cmdpath+"devices.gob")	 
-	 
+	dev[mac] = []string{ip, sdev}
+
+	fp := filepath.FromSlash(cmdpath + "devices.gob")
+
 	file, err := os.Create(fp)
-   
-    if err == nil { 
-       
-       
-    }
-        
-    encoder := gob.NewEncoder(file)
-     
-    if err := encoder.Encode(dev); err != nil {
-		
+
+	if err == nil {
+
 	}
-	
+
+	encoder := gob.NewEncoder(file)
+
+	if err := encoder.Encode(dev); err != nil {
+
+	}
+
 	file.Close()
-	
-	 
+
 }
-
-
 
 func deviceHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -568,10 +544,10 @@ func deviceHandler(w http.ResponseWriter, r *http.Request) {
 
 			macroHandler(w, r)
 
-		}else if strings.Contains(path, "/learnchild/") {
-			
+		} else if strings.Contains(path, "/learnchild/") {
+
 			learnChildHandler(w, r)
-			
+
 		}
 
 	} else {
@@ -610,11 +586,10 @@ func removeDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	cmd = parts[2]
 
 	removeDevice(cmd)
-	
+
 	respond(w, 200, "Command Removed", "")
 
 }
-
 
 func removeHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -644,8 +619,8 @@ func removeHandler(w http.ResponseWriter, r *http.Request) {
 	cmd = parts[2]
 
 	file := cmdpath + "commands/cmd_" + cmd + ".txt"
-	
-	fp := filepath.FromSlash(file)	
+
+	fp := filepath.FromSlash(file)
 
 	var err = os.Remove(fp)
 
@@ -665,8 +640,8 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 	var files []string
 
 	root := cmdpath + "commands"
-	
-	fp := filepath.FromSlash(root)	
+
+	fp := filepath.FromSlash(root)
 
 	err := filepath.Walk(fp, func(path string, info os.FileInfo, err error) error {
 
@@ -676,7 +651,6 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 
 		path = strings.Replace(path, filepath.FromSlash(root+"/cmd_"), "", -1)
 		path = strings.Replace(path, filepath.FromSlash("commands/cmd_"), "", -1)
-	
 
 		parts := strings.Split(path, ".")
 
@@ -708,6 +682,16 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func testHandler(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-type", "text/plain")
+
+	frequency, _ := broadlink.GetRFFrequency("ec:0b:ae:d8:98:77")
+
+	respond(w, 200, strconv.FormatFloat(frequency, 'f', 0, 64)+" Frequency found", "")
+
+}
+
 type Devices struct{}
 
 func respond(w http.ResponseWriter, code int, message string, payload interface{}) {
@@ -731,16 +715,13 @@ func respond(w http.ResponseWriter, code int, message string, payload interface{
 
 }
 
-func loadDevices(){
-
+func loadDevices() {
 
 	dev := getDeviceSaved()
 
-	if(len(dev)>0){
+	if len(dev) > 0 {
 
-		for k,v := range dev {
-
-
+		for k, v := range dev {
 
 			devicetype := v[1]
 
@@ -756,7 +737,6 @@ func loadDevices(){
 
 	}
 
-
 }
 
 type JsonResp struct {
@@ -767,129 +747,123 @@ type JsonResp struct {
 
 func main() {
 
-	broadlinkgo.Logger.SetFlags(0)//disable logging
-	
-	var cpath=""
-	
-	if ( runtime.GOOS == "windows") {
-		
-		cpath = os.Getenv("APPDATA")+"\\broadlinkgo\\"
-	
-		
-	}else if(runtime.GOOS == "darwin"){
-		
-		cpath = os.Getenv("HOME")+"/broadlinkgo/"
+	//broadlinkgo.Logger.SetFlags(0)//disable logging
 
-    }else{
-	    		
+	var cpath = ""
+
+	if runtime.GOOS == "windows" {
+
+		cpath = os.Getenv("APPDATA") + "\\broadlinkgo\\"
+
+	} else if runtime.GOOS == "darwin" {
+
+		cpath = os.Getenv("HOME") + "/broadlinkgo/"
+
+	} else {
+
 		cpath = "/etc/broadlinkgo/"
 	}
-	
-	if(cpath!=""){}
-	
-    flag.IntVar(&port, "port", 8000, "HTTP listener port")
+
+	if cpath != "" {
+	}
+
+	flag.IntVar(&port, "port", 8000, "HTTP listener port")
 	flag.StringVar(&cmdpath, "cmdpath", cpath, "Path to commands folder")
 	flag.StringVar(&mode, "mode", "auto", "Auto or Manual")
 	flag.Parse()
-	
-	log.Println("Saving commands to "+cmdpath)
-	
+
+	log.Println("Saving commands to " + cmdpath)
+
 	//bunch of windows path fixing stuff
-	
-	cmdpath = strings.Replace(cmdpath,"\\","/",-1)//we do this because we use filepath everywhere and need the same file path direction
-	cmdpath = strings.Replace(cmdpath,"\"","",-1)
-	
+
+	cmdpath = strings.Replace(cmdpath, "\\", "/", -1) //we do this because we use filepath everywhere and need the same file path direction
+	cmdpath = strings.Replace(cmdpath, "\"", "", -1)
+
 	slash := cmdpath[len(cmdpath)-1:]
-	
-	if(slash!="/"){
-		
-		cmdpath = cmdpath+"/"
-		
+
+	if slash != "/" {
+
+		cmdpath = cmdpath + "/"
+
 	}
-	
-	
+
 	ticker := time.NewTicker(5 * time.Second)
-	
-	if(mode=="auto"){
 
+	if mode == "auto" {
 
+		go func() {
+			for range ticker.C {
 
-	go func() {
-		for range ticker.C {
+				broadlink = broadlinkgo.NewBroadlink()
+				err := broadlink.Discover()
+				if err != nil {
+					log.Fatal(err)
+				}
 
-			broadlink = broadlinkgo.NewBroadlink()
-			err := broadlink.Discover()
-			if err != nil {
-				log.Fatal(err)
+				log.Println("Found " + strconv.Itoa(broadlink.Count()) + " devices")
+
+				if broadlink.Count() < 1 {
+
+					log.Println("No devices found")
+
+				} else {
+
+					log.Println("Devices Found, updating check interval")
+					ticker.Stop()
+					ticker = time.NewTicker(300 * time.Second) //look every 5
+
+				}
+
 			}
 
-			log.Println("Found " + strconv.Itoa(broadlink.Count()) + " devices")
+		}()
 
-			if broadlink.Count() < 1 {
+	} else {
 
-				log.Println("No devices found")
-
-			} else {
-
-				log.Println("Devices Found, updating check interval")
-				ticker.Stop()
-				ticker = time.NewTicker(300 * time.Second) //look every 5
-
-			}
-
-		}
-
-	}()
-	
-	}else{
-		
 		broadlink = broadlinkgo.NewBroadlink()
 
 		dev := getDeviceSaved()
-	    loadDevices()
-		
-        	go func() {
-	        	
-	        	//update the ticker for the manual. mode to look for every 5 minutes
-	        	ticker = time.NewTicker(300 * time.Second) //look every 5
-	        	
-				for range ticker.C {
-	
-					if broadlink.Count() < len(dev) {
-		
-						for k,v := range dev {
-							
-							if( broadlink.DeviceExists(k) ){
-								
-								continue
-							}
-							
-							fmt.Println("Trying to connect to "+k)
-				
-							devicetype := v[1]
-							
-							ip := v[0]
-							
-							mac := k
-							
-							deviceType, _ := strconv.Atoi(devicetype)
-			
-				            broadlink.AddManualDevice(ip, mac, deviceType)
-				            
-				        }						
-		
+		loadDevices()
+
+		go func() {
+
+			//update the ticker for the manual. mode to look for every 5 minutes
+			ticker = time.NewTicker(300 * time.Second) //look every 5
+
+			for range ticker.C {
+
+				if broadlink.Count() < len(dev) {
+
+					for k, v := range dev {
+
+						if broadlink.DeviceExists(k) {
+
+							continue
+						}
+
+						fmt.Println("Trying to connect to " + k)
+
+						devicetype := v[1]
+
+						ip := v[0]
+
+						mac := k
+
+						deviceType, _ := strconv.Atoi(devicetype)
+
+						broadlink.AddManualDevice(ip, mac, deviceType)
+
 					}
-		
+
 				}
-		
-			}()    
-    }
 
+			}
 
-
+		}()
+	}
 
 	//create cmdpath if not exist
-	
+
 	fp := filepath.FromSlash(cmdpath + "commands")
 
 	if _, err := os.Stat(fp); os.IsNotExist(err) {
@@ -909,20 +883,19 @@ func main() {
 	http.HandleFunc("/device/", deviceHandler)
 	http.HandleFunc("/manualdevice/", manualDeviceHandler)
 	http.HandleFunc("/status/", statusHandler)
+	http.HandleFunc("/test/", testHandler)
 	http.HandleFunc("/cmd/", cmdHandler)
-	http.HandleFunc("/discover/",func(w http.ResponseWriter, r *http.Request) {
-
-
+	http.HandleFunc("/discover/", func(w http.ResponseWriter, r *http.Request) {
 
 		path := r.URL.Path
 		path = strings.Replace(path, " ", "_", -1)
 		path = strings.ToLower(path)
 
-		parts := strings.Split(path,"/")
+		parts := strings.Split(path, "/")
 
-		if(len(parts)<2){
+		if len(parts) < 2 {
 
-			fmt.Fprintf(w,`{"ok": "false"}`)
+			fmt.Fprintf(w, `{"ok": "false"}`)
 			return
 		}
 
@@ -932,13 +905,13 @@ func main() {
 
 		err := broadlink.DiscoverHost(hst)
 
-		if(err==nil){
+		if err == nil {
 
-			fmt.Fprintf(w,`{"ok": "true"}`)
+			fmt.Fprintf(w, `{"ok": "true"}`)
 
-		}else{
+		} else {
 
-			fmt.Fprintf(w,`{"ok": "false"}`)
+			fmt.Fprintf(w, `{"ok": "false"}`)
 
 		}
 
