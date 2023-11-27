@@ -42,6 +42,7 @@ var knownDevices = []KnownDevice{
 	KnownDevice{DeviceType: 0x61a2, Name: "Broadlink RM4 Pro V2", Supported: true, Ir: true, Rf: true, Power: false, RequestHeader: []byte{0x04, 0x00}, CodeSendingHeader: []byte{0xd0, 0x00}},
 	KnownDevice{DeviceType: 0x649b, Name: "Broadlink RM4 Pro V3", Supported: true, Ir: true, Rf: true, Power: false, RequestHeader: []byte{0x04, 0x00}, CodeSendingHeader: []byte{0xd0, 0x00}},
 	KnownDevice{DeviceType: 0x653c, Name: "Broadlink RM4 Pro V4", Supported: true, Ir: true, Rf: true, Power: false, RequestHeader: []byte{0x04, 0x00}, CodeSendingHeader: []byte{0xd0, 0x00}},
+	KnownDevice{DeviceType: 0x5213, Name: "Broadlink RM4 Pro", Supported: true, Ir: true, Rf: true, Power: false, RequestHeader: []byte{0x04, 0x00}, CodeSendingHeader: []byte{0xd0, 0x00}},
 	KnownDevice{DeviceType: 0x6026, Name: "Broadlink RM4 Pro Plus", Supported: true, Ir: true, Rf: true, Power: false, RequestHeader: []byte{0x04, 0x00}, CodeSendingHeader: []byte{0xd0, 0x00}},
 	KnownDevice{DeviceType: 0x27a9, Name: "Broadlink RM3 Pro Plus v2", Supported: true, Ir: true, Rf: true, Power: false},
 	KnownDevice{DeviceType: 0, Name: "Broadlink SP1", Supported: true, Ir: false, Rf: false, Power: true},
@@ -64,26 +65,22 @@ var knownDevices = []KnownDevice{
 
 //force add a device, useful in testing for new devices, error if the same name label is used
 
-func AddKnownDevice(kd KnownDevice) error{
-
-
+func AddKnownDevice(kd KnownDevice) error {
 
 	for _, d := range knownDevices {
 
-		if(d.Name == kd.Name) {
+		if d.Name == kd.Name {
 
 			return errors.New("Unable to add device with the same Name")
-
 
 		}
 
 	}
 
-	knownDevices = append(knownDevices,kd)
+	knownDevices = append(knownDevices, kd)
 
 	return nil
 }
-
 
 func isKnownDevice(dt int) deviceCharacteristics {
 	resp := deviceCharacteristics{}
