@@ -683,9 +683,11 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func testHandler(w http.ResponseWriter, r *http.Request) {
-
+	
 	w.Header().Set("Content-type", "text/plain")
 
+	broadlink.LearnRFwFrequency("ec:0b:ae:d8:98:77", 315)
+	//broadlink.LearnRFwFrequency("ec:0b:ae:d8:98:77", 433.92)
 	frequency, _ := broadlink.GetRFFrequency("ec:0b:ae:d8:98:77")
 
 	respond(w, 200, strconv.FormatFloat(frequency, 'f', 0, 64)+" Frequency found", "")

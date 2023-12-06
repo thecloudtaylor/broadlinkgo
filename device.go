@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"net"
 	"strconv"
@@ -145,11 +144,11 @@ func (d *device) serverRequest(req unencryptedRequest) (Response, error) {
 		return resp, fmt.Errorf("could not setup UDP listener: %v", err)
 	}
 
-	//Logger.Printf("Request: %#v",req)
+	Logger.Printf("Request: %#v",req)
 
 	encryptedReq, err := d.encryptRequest(req)
 	if err != nil {
-		//Logger.Printf("%#v",err)
+		Logger.Printf("%#v",err)
 		return resp, err
 	}
 
@@ -529,6 +528,7 @@ func (d *device) learnRF() (Response, error) {
 // Information on the RF learning sequence can be found at:
 // https://github.com/mjg59/python-broadlink/pull/613/commits/168b9015ab37692e1d1164bfc4dd0282f16ab018
 func (d *device) learnRFwFrequency(frequency float64) (Response, error) {
+	log.Println("In learnRFwFrequency")
 
 	deadline := time.Now().Add(learnTimeout * time.Second)
 	defer d.close()
@@ -541,12 +541,12 @@ func (d *device) learnRFwFrequency(frequency float64) (Response, error) {
 		}
 
 		switch state {
-
 		case 1:
+			d.cancelLearn()
 			// Send CheckRFData2 (find RF packet) once then proceed to next stage
 			_, err := d.checkRFData2wFrequency(frequency)
 			if err == nil {
-				log.Print("Find RF packet request sent successfully, proceeding to check data...")
+				log.Println("Find RF packet request sent successfully, proceeding to check data...")
 				state = 2
 			}
 		case 2:
@@ -740,7 +740,9 @@ func (d *device) checkRFData2Payload() unencryptedRequest {
 func (d *device) checkRFData2PayloadwFrequency(frequency float64) unencryptedRequest {
 	p := d.basicRequestPayload(0x1b)
 
-	binary.BigEndian.PutUint64(p[4:], math.Float64bits(frequency))
+	binary.LittleEndian.PutUint32(p[6:], uint32(frequency *1000))
+	//binary.BigEndian.PutUint64(p[4:], math.Float64bits(frequency))
+	log.Println("In checkRFData2PayloadwFrequency frequncy: %v, Payload: %v", frequency, p)
 
 	return unencryptedRequest{
 		command: 0x6a,
