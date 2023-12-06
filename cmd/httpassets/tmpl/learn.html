@@ -61,6 +61,13 @@
         <div>
           <label>Is RF:</label>
           <input type="checkbox" name='rf'>
+          <datalist id="frequencies" value="Discover">
+            <option value="Discover">
+            <option value="433.92">
+            <option value="315">
+          </datalist>
+          <label>Optional RF Frequency:</label>
+          <input list="frequencies" name='rfFrequencies'>
         </div>
 	          <div class="form-group">
 	      <input name='submit' value='Start Learning' type='submit' />

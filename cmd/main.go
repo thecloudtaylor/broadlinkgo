@@ -232,6 +232,9 @@ func learnHandler(w http.ResponseWriter, r *http.Request) {
 
 		rf := r.FormValue("rf")
 
+		rfFrequency := r.FormValue("rfFrequency")
+
+
 		src := ``
 
 		if dev != "" {
@@ -242,6 +245,7 @@ func learnHandler(w http.ResponseWriter, r *http.Request) {
 
 		if rf != "" {
 			src = src + `/rf/`
+			src = src + `/rfFrequency/` + rfFrequency
 		}
 
 		frame = `<h4>Learning device [` + cmd + `]</h4><iframe src='` + src + `' width='100%' height='500px' ></iframe>`
@@ -291,6 +295,8 @@ func learnChildHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rf := strings.Contains(path, "/rf/")
+	rfFrequency := r.Form.Get("rfFrequencies")
+
 
 	if rf {
 		fmt.Fprintln(w, "Waiting for RF remote. IMPORTANT - press on for 1 second and release until learning is finished <blink>....</blink>")
@@ -312,8 +318,12 @@ func learnChildHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if rf {
-
-		data, err = broadlink.LearnRF(device)
+		if ((rfFrequency == "Discover") || (rfFrequency == "")) {
+			data, err = broadlink.LearnRF(device)
+		} else {
+			floatFreq, _ := strconv.ParseFloat(rfFrequency, 64)
+			data, err = broadlink.LearnRFwFrequency(device, floatFreq)
+		}
 	} else {
 		data, err = broadlink.Learn(device)
 	}
@@ -682,17 +692,6 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func testHandler(w http.ResponseWriter, r *http.Request) {
-	
-	w.Header().Set("Content-type", "text/plain")
-
-	broadlink.LearnRFwFrequency("ec:0b:ae:d8:98:77", 315)
-	//broadlink.LearnRFwFrequency("ec:0b:ae:d8:98:77", 433.92)
-	frequency, _ := broadlink.GetRFFrequency("ec:0b:ae:d8:98:77")
-
-	respond(w, 200, strconv.FormatFloat(frequency, 'f', 0, 64)+" Frequency found", "")
-
-}
 
 type Devices struct{}
 
@@ -885,7 +884,6 @@ func main() {
 	http.HandleFunc("/device/", deviceHandler)
 	http.HandleFunc("/manualdevice/", manualDeviceHandler)
 	http.HandleFunc("/status/", statusHandler)
-	http.HandleFunc("/test/", testHandler)
 	http.HandleFunc("/cmd/", cmdHandler)
 	http.HandleFunc("/discover/", func(w http.ResponseWriter, r *http.Request) {
 
