@@ -470,7 +470,7 @@ func (d *device) learn() (Response, error) {
 // Information on the RF learning sequence can be found at:
 // https://github.com/mjg59/python-broadlink/issues/87
 func (d *device) learnRF() (Response, error) {
-
+	log.Print("Starting RF Learn Sequence with Frequency Sweep")
 	deadline := time.Now().Add(learnTimeout * time.Second)
 	defer d.close()
 	_, err := d.serverRequest(d.enterRFSweepPayload())
@@ -528,6 +528,9 @@ func (d *device) learnRF() (Response, error) {
 // Information on the RF learning sequence can be found at:
 // https://github.com/mjg59/python-broadlink/pull/613/commits/168b9015ab37692e1d1164bfc4dd0282f16ab018
 func (d *device) learnRFwFrequency(frequency float64) (Response, error) {
+	log.Print("Starting RF Learn Sequence Locked on Frequency: ", frequency)
+
+
 	deadline := time.Now().Add(learnTimeout * time.Second)
 	defer d.close()
 	state := 1

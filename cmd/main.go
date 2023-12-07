@@ -295,8 +295,6 @@ func learnChildHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rf := strings.Contains(path, "/rf/")
-	rfFrequency := r.Form.Get("rfFrequencies")
-
 
 	if rf {
 		fmt.Fprintln(w, "Waiting for RF remote. IMPORTANT - press on for 1 second and release until learning is finished <blink>....</blink>")
@@ -316,9 +314,11 @@ func learnChildHandler(w http.ResponseWriter, r *http.Request) {
 
 	var data string
 	var err error
-
 	if rf {
-		if ((rfFrequency == "Discover") || (rfFrequency == "")) {
+		rfFrequency := parts[5]
+		log.Println("rfFrequency: ", rfFrequency)
+
+		if ((strings.ToLower(rfFrequency) == "discover") || (rfFrequency == "")) {
 			data, err = broadlink.LearnRF(device)
 		} else {
 			floatFreq, _ := strconv.ParseFloat(rfFrequency, 64)

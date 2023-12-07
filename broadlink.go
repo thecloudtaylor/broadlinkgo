@@ -132,12 +132,10 @@ func (b *Broadlink) LearnRF(id string) (string, error) {
 
 // LearnRF sends an RF Sweep command to the specified device. If id is an empty string it selects the first device.
 func (b *Broadlink) LearnRFwFrequency(id string, frequency float64) (string, error) {
-	log.Print("In LearnRFwFrequency")
 	d, err := b.deviceIsCapableOfRF(id)
 	if err != nil {
 		return "", err
 	}
-	log.Print("In LearnRFwFrequency2")
 
 	resp, err := d.learnRFwFrequency(frequency)
 	if err != nil {
